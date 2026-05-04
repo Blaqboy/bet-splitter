@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bet Splitter</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #1a7a3c;
+      --green-light: #22a050;
+      --gold: #f0a500;
+      --bg: #f4f4f4;
+      --card: #ffffff;
+      --border: rgba(0,0,0,0.12);
+      --text: #111;
+      --muted: #555;
+      --hint: #999;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141414;
+        --card: #1e1e1e;
+        --border: rgba(255,255,255,0.1);
+        --text: #f0f0f0;
+        --muted: #aaa;
+        --hint: #666;
+      }
+    }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    header { margin-bottom: 2rem; }
+    header h1 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 32px; font-weight: 700; letter-spacing: 0.5px;
+      color: var(--text);
+    }
+    header p { font-size: 14px; color: var(--muted); margin-top: 6px; }
+
+    .input-area {
+      background: var(--card);
+      border: 0.5px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .input-label {
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px;
+    }
+
+    .input-hint {
+      font-size: 13px; color: var(--hint);
+      margin-bottom: 14px; line-height: 1.6;
+    }
+    .input-hint code {
+      background: rgba(0,0,0,0.06); padding: 1px 5px;
+      border-radius: 4px; font-size: 12px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .input-hint code { background: rgba(255,255,255,0.08); }
+    }
+
+    textarea {
+      width: 100%; min-height: 220px; resize: vertical;
+      font-family: 'Barlow', sans-serif; font-size: 14px;
+      background: var(--bg); border: 0.5px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      padding: 12px 14px; line-height: 1.7;
+    }
+    textarea:focus { outline: none; border-color: var(--green); }
+    textarea::placeholder { color: var(--hint); }
+
+    .controls {
+      display: flex; align-items: center; gap: 12px;
+      margin-top: 14px; flex-wrap: wrap;
+    }
+
+    .count-badge { font-size: 13px; color: var(--muted); }
+    .count-badge span { font-weight: 500; color: var(--text); }
+
+    .status-pill {
+      font-size: 11px; font-weight: 600; padding: 4px 12px;
+      border-radius: 20px; border: 0.5px solid;
+    }
+    .status-ok  { background: #eaf3de; color: #3b6d11; border-color: #97c459; }
+    .status-warn{ background: #faeeda; color: #854f0b; border-color: #ef9f27; }
+    .status-err { background: #fcebeb; color: #a32d2d; border-color: #f09595; }
+
+    .split-btn {
+      margin-left: auto;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px; font-weight: 700; letter-spacing: 0.5px;
+      background: var(--green); color: #fff;
+      border: none; border-radius: 8px;
+      padding: 10px 24px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .split-btn:hover  { background: var(--green-light); }
+    .split-btn:disabled {
+      background: var(--border); color: var(--hint); cursor: not-allowed;
+    }
+
+    .results { display: none; }
+    .results.visible { display: block; }
+
+    .section-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px; font-weight: 700; letter-spacing: 1.2px;
+      color: var(--muted); text-transform: uppercase;
+      margin: 2rem 0 0.75rem;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-title::after {
+      content: ''; flex: 1; height: 0.5px; background: var(--border);
+    }
+
+    .tickets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .ticket {
+      background: var(--card);
+      border: 0.5px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .ticket-accent-master { border-left: 3px solid #f0a500; }
+    .ticket-accent-a      { border-left: 3px solid #378add; }
+    .ticket-accent-b      { border-left: 3px solid #d4537e; }
+    .ticket-accent-ab     { border-left: 3px solid #1d9e75; }
+    .ticket-accent-w      { border-left: 3px solid #7f77dd; }
+    .ticket-accent-mini   { border-left: 3px solid #e24b4a; }
+
+    .ticket-head {
+      padding: 10px 14px;
+      border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .ticket-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px; font-weight: 700; color: var(--text);
+    }
+    .ticket-meta { font-size: 11px; color: var(--hint); }
+
+    .ticket-body { padding: 8px 14px 12px; }
+
+    .divider-row {
+      font-size: 10px; color: var(--hint);
+      padding: 6px 0 2px;
+      letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600;
+    }
+
+    .game-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 0;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 13px;
+    }
+    .game-row:last-child { border-bottom: none; }
+
+    .game-time {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px; color: var(--hint); min-width: 40px;
+    }
+    .game-teams { flex: 1; color: var(--text); }
+    .game-pick {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px; font-weight: 700;
+      min-width: 30px; text-align: center;
+      padding: 2px 6px; border-radius: 4px;
+      border: 0.5px solid var(--border);
+    }
+    .pick-1 { background: #eaf3de; color: #3b6d11; border-color: #97c459; }
+    .pick-x { background: #faeeda; color: #854f0b; border-color: #ef9f27; }
+    .pick-2 { background: #fcebeb; color: #a32d2d; border-color: #f09595; }
+
+    .reset-btn {
+      font-family: 'Barlow', sans-serif; font-size: 13px;
+      background: transparent;
+      border: 0.5px solid var(--border);
+      border-radius: 8px; color: var(--muted);
+      padding: 8px 18px; cursor: pointer;
+      margin-top: 2rem;
+      transition: background 0.15s;
+    }
+    .reset-btn:hover { background: var(--card); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Bet Splitter</h1>
+      <p>Paste your analyzed games — the app sorts, splits, and generates all your tickets automatically.</p>
+    </header>
+
+    <div class="input-area" id="inputArea">
+      <div class="input-label">Your games</div>
+      <div class="input-hint">
+        One game per line &nbsp;·&nbsp; Format: <code>HH:MM Home vs Away Pick</code><br>
+        Example: <code>14:00 Arsenal vs Chelsea 1</code> &nbsp;·&nbsp; Pick = 1, X, or 2<br>
+        Minimum 16 games &nbsp;·&nbsp; Must be an even number &nbsp;·&nbsp; Best as multiples of 8 (16, 24, 32, 40…)
+      </div>
+      <textarea id="gameInput" placeholder="13:00 Man City vs Liverpool 1&#10;13:00 Barcelona vs Real Madrid X&#10;15:30 PSG vs Bayern 2&#10;16:00 Juventus vs AC Milan 1&#10;..."></textarea>
+      <div class="controls">
+        <div class="count-badge">Games entered: <span id="countDisplay">0</span></div>
+        <div class="status-pill status-warn" id="statusPill">Enter games</div>
+        <button class="split-btn" id="splitBtn" disabled>Split Tickets</button>
+      </div>
+    </div>
+
+    <div class="results" id="results">
+      <div id="ticketsOut"></div>
+      <button class="reset-btn" id="resetBtn">Clear and start over</button>
+    </div>
+  </div>
+
+  <script>
+    const ta        = document.getElementById('gameInput');
+    const countEl   = document.getElementById('countDisplay');
+    const pill      = document.getElementById('statusPill');
+    const btn       = document.getElementById('splitBtn');
+    const resultsEl = document.getElementById('results');
+    const ticketsOut= document.getElementById('ticketsOut');
+    const resetBtn  = document.getElementById('resetBtn');
+    const inputArea = document.getElementById('inputArea');
+
+    function parseGames(text) {
+      return text.split('\n')
+        .map(l => l.trim()).filter(Boolean)
+        .map(line => {
+          const m = line.match(/^(\d{1,2}:\d{2})\s+(.+?)\s+(1|X|2)\s*$/i);
+          if (!m) return null;
+          return { time: m[1], teams: m[2], pick: m[3].toUpperCase() };
+        }).filter(Boolean);
+    }
+
+    function timeToMins(t) {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function updateStatus() {
+      const games = parseGames(ta.value);
+      const n = games.length;
+      countEl.textContent = n;
+      pill.className = 'status-pill';
+
+      if (n === 0) {
+        pill.textContent = 'Enter games';
+        pill.classList.add('status-warn');
+        btn.disabled = true; return;
+      }
+      if (n % 2 !== 0) {
+        pill.textContent = 'Odd number — add 1 more';
+        pill.classList.add('status-err');
+        btn.disabled = true; return;
+      }
+      if (n < 16) {
+        pill.textContent = `Need ${16 - n} more game(s)`;
+        pill.classList.add('status-err');
+        btn.disabled = true; return;
+      }
+
+      const rem = n % 8;
+      if (rem !== 0) {
+        pill.textContent = `${rem} game(s) won't be used (not a multiple of 8)`;
+        pill.classList.add('status-warn');
+      } else {
+        pill.textContent = `${n} games — ready`;
+        pill.classList.add('status-ok');
+      }
+      btn.disabled = false;
+    }
+
+    ta.addEventListener('input', updateStatus);
+
+    function gameRowHTML(g) {
+      const pickClass = g.pick === '1' ? 'pick-1' : g.pick === 'X' ? 'pick-x' : 'pick-2';
+      return `<div class="game-row">
+        <span class="game-time">${g.time}</span>
+        <span class="game-teams">${g.teams}</span>
+        <span class="game-pick ${pickClass}">${g.pick}</span>
+      </div>`;
+    }
+
+    function ticketHTML(name, games, accentClass, meta, groupLabels) {
+      let rows = '';
+      games.forEach((g, i) => {
+        if (groupLabels && groupLabels[i]) {
+          rows += `<div class="divider-row">${groupLabels[i]}</div>`;
+        }
+        rows += gameRowHTML(g);
+      });
+      return `<div class="ticket ${accentClass}">
+        <div class="ticket-head">
+          <span class="ticket-name">${name}</span>
+          <span class="ticket-meta">${meta}</span>
+        </div>
+        <div class="ticket-body">${rows}</div>
+      </div>`;
+    }
+
+    function makeLabels(ga, gb, nameA, nameB) {
+      const labels = {};
+      labels[0] = nameA;
+      labels[ga.length] = nameB;
+      return labels;
+    }
+
+    function top2(g) { return g.slice(0, 2); }
+
+    function section(label, html) {
+      return `<div class="section-title">${label}</div>
+              <div class="tickets-grid">${html}</div>`;
+    }
+
+    btn.addEventListener('click', () => {
+      let games = parseGames(ta.value);
+      games.sort((a, b) => timeToMins(a.time) - timeToMins(b.time));
+
+      const n   = games.length;
+      const use = n - (n % 8);
+      games = games.slice(0, use);
+
+      const half = use / 2;
+      const qtr  = half / 4;
+
+      const A = games.slice(0, half);
+      const B = games.slice(half);
+
+      const A1 = A.slice(0, half / 2),  A2 = A.slice(half / 2);
+      const B1 = B.slice(0, half / 2),  B2 = B.slice(half / 2);
+
+      const G1 = A1.slice(0, qtr),  G2 = A1.slice(qtr);
+      const G3 = A2.slice(0, qtr),  G4 = A2.slice(qtr);
+      const G5 = B1.slice(0, qtr),  G6 = B1.slice(qtr);
+      const G7 = B2.slice(0, qtr),  G8 = B2.slice(qtr);
+
+      const W1 = G1, W2 = G2, W3 = G3, W4 = G4;
+      const WI = G5, WII = G6, WIII = G7, WIV = G8;
+
+      let out = '';
+
+      // Master
+      out += section('Master ticket — all games',
+        ticketHTML('All Games', games, 'ticket-accent-master', `${use} games`, null)
+      );
+
+      // Level 1
+      out += section('Level 1 — Early vs Late',
+        ticketHTML('Games A', A, 'ticket-accent-a', `${half} early games`, null) +
+        ticketHTML('Games B', B, 'ticket-accent-b', `${half} late games`, null)
+      );
+
+      // Level 2
+      const ab1 = [...A1, ...B1];
+      const ab2 = [...A2, ...B2];
+      out += section('Level 2 — Cross combos · 20 games each',
+        ticketHTML('Combo AB1', ab1, 'ticket-accent-ab', `${ab1.length} games`, makeLabels(A1, B1, 'A1 — early', 'B1 — late')) +
+        ticketHTML('Combo AB2', ab2, 'ticket-accent-ab', `${ab2.length} games`, makeLabels(A2, B2, 'A2 — early', 'B2 — late'))
+      );
+
+      // Level 3
+      const wPairs = [
+        { name: 'W1 + WIV',  games: [...W1,  ...WIV],  lab: makeLabels(W1,  WIV,  'W1',  'WIV')  },
+        { name: 'W2 + WIII', games: [...W2,  ...WIII], lab: makeLabels(W2,  WIII, 'W2',  'WIII') },
+        { name: 'W3 + WII',  games: [...W3,  ...WII],  lab: makeLabels(W3,  WII,  'W3',  'WII')  },
+        { name: 'W4 + WI',   games: [...W4,  ...WI],   lab: makeLabels(W4,  WI,   'W4',  'WI')   },
+      ];
+      out += section('Level 3 — W group tickets · 10 games each',
+        wPairs.map(p => ticketHTML(p.name, p.games, 'ticket-accent-w', `${p.games.length} games`, p.lab)).join('')
+      );
+
+      // Level 4
+      const miniPairs = [
+        { name: 'Mini W1 + WIV',  games: [...top2(W1),  ...top2(WIV)],  lab: makeLabels(top2(W1),  top2(WIV),  'W1 — top 2',  'WIV — top 2')  },
+        { name: 'Mini W2 + WIII', games: [...top2(W2),  ...top2(WIII)], lab: makeLabels(top2(W2),  top2(WIII), 'W2 — top 2',  'WIII — top 2') },
+        { name: 'Mini W3 + WII',  games: [...top2(W3),  ...top2(WII)],  lab: makeLabels(top2(W3),  top2(WII),  'W3 — top 2',  'WII — top 2')  },
+        { name: 'Mini W4 + WI',   games: [...top2(W4),  ...top2(WI)],   lab: makeLabels(top2(W4),  top2(WI),   'W4 — top 2',  'WI — top 2')   },
+      ];
+      out += section('Level 4 — Mini tickets · top 2 by time · 4 games each',
+        miniPairs.map(p => ticketHTML(p.name, p.games, 'ticket-accent-mini', `${p.games.length} games`, p.lab)).join('')
+      );
+
+      ticketsOut.innerHTML = out;
+      resultsEl.classList.add('visible');
+      inputArea.style.display = 'none';
+      resultsEl.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    resetBtn.addEventListener('click', () => {
+      ta.value = '';
+      updateStatus();
+      resultsEl.classList.remove('visible');
+      inputArea.style.display = 'block';
+      ticketsOut.innerHTML = '';
+    });
+  </script>
+</body>
+</html>
